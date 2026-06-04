@@ -18,6 +18,7 @@
 #include <Adafruit_PN532.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,7 +26,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const char* WIFI_SSID     = "Mega_2.4G_6F7B";
 const char* WIFI_PASSWORD = "7Qk93cRx";
-const char* SERVER_URL    = "http://192.168.1.16:3001";
+const char* SERVER_URL    = "https://axfgymnet.com";
 const char* API_KEY       = "axf_esp32_2025";
 
 const unsigned long POLL_INTERVALO_MS = 400;
@@ -43,6 +44,7 @@ const unsigned long TIMEOUT_NFC_MS   = 12000;
 // OBJETOS
 // ─────────────────────────────────────────────────────────────────────────────
 Adafruit_PN532 nfc(PN532_SS);
+WiFiClientSecure secureClient;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ESTADO GLOBAL
@@ -65,12 +67,12 @@ String uidToString(uint8_t* uid, uint8_t len) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HTTP HELPERS
+// HTTP HELPERS (HTTPS con WiFiClientSecure)
 // ─────────────────────────────────────────────────────────────────────────────
 bool httpPost(const String& path, const String& body, String* respOut = nullptr) {
   if (WiFi.status() != WL_CONNECTED) return false;
   HTTPClient http;
-  http.begin(String(SERVER_URL) + path);
+  http.begin(secureClient, String(SERVER_URL) + path);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Connection", "close");
   http.setTimeout(8000);
@@ -85,7 +87,7 @@ bool httpPost(const String& path, const String& body, String* respOut = nullptr)
 bool httpGet(const String& path, String& respOut) {
   if (WiFi.status() != WL_CONNECTED) return false;
   HTTPClient http;
-  http.begin(String(SERVER_URL) + path);
+  http.begin(secureClient, String(SERVER_URL) + path);
   http.addHeader("Connection", "close");
   http.setTimeout(8000);
   int code = http.GET();
@@ -216,6 +218,9 @@ void setup() {
   Serial.println(WiFi.status() == WL_CONNECTED
     ? "\n[WIFI] ✓ IP: " + WiFi.localIP().toString()
     : "\n[WIFI] Sin conexión — reintento automático");
+
+  // Configurar cliente HTTPS (sin verificación de certificado)
+  secureClient.setInsecure();
 
   // NFC
   SPI.begin(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
